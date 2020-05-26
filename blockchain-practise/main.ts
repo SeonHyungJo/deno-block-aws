@@ -5,25 +5,35 @@ interface BlockData {
   time: Date;
 }
 
+class Transaction {
+  public fromAddress:string;
+  public toAddress:string;
+  public amount:number;
+
+  constructor(fromAddress:string, toAddress:string, amount:number) {
+    this.fromAddress = fromAddress;
+    this.toAddress = toAddress;
+    this.amount = amount;
+  }
+}
+
 class Block {
-  private readonly index: number;
-  private readonly timestamp: Date;
-  private data: BlockData;
+  private readonly timestamp: number;
+  public transactions: Array<Transaction>;
   public previousHash: string;
   public hash: string;
   private nonce: number;
 
-  constructor(index: number, timestamp: Date, data: BlockData, previousHash = '') {
-    this.index = index;
+  constructor(timestamp: number, transactions: Array<Transaction>, previousHash = '') {
     this.timestamp = timestamp;
-    this.data = data;
+    this.transactions = transactions;
     this.previousHash = previousHash;
     this.hash = this.calculateHash();
     this.nonce = 0;
   }
 
   calculateHash(): string {
-    return sha256(this.index + this.previousHash + this.timestamp + JSON.stringify(this.data) + this.nonce, 'utf-8', 'hex').toString();
+    return sha256(this.previousHash + this.timestamp + JSON.stringify(this.transactions) + this.nonce, 'utf-8', 'hex').toString();
   }
 
   mineBlock(difficulty:number){
@@ -39,29 +49,56 @@ class Block {
 class Blockchain {
   private chain: Array<Block>;
   private difficulty: number;
+  private pendingTransactions: Array<Transaction>;
+  private miningReward: number
 
   constructor() {
     this.chain = [this.createGenesisBlock()];
     this.difficulty = 2;
+    this.pendingTransactions = [];
+    this.miningReward = 100;
   }
 
   createGenesisBlock(): Block {
-    const date = {
-      name: 'snyung',
-      time: new Date()
-    };
-
-    return new Block(0, new Date(), date, '0');
+    return new Block(Date.now(), [], '0');
   }
  
   getLatesBlock(): Block {
     return this.chain[this.chain.length - 1];
   }
 
-  addBlock(newBlock: Block):void {
-    newBlock.previousHash = this.getLatesBlock().calculateHash();
-    newBlock.mineBlock(this.difficulty);
-    this.chain.push(newBlock);
+  minePendingTransaction(miningRewardAddress:string):void{
+    const block = new Block(Date.now(), this.pendingTransactions);
+    block.mineBlock(this.difficulty);
+
+    console.log('Block successfully mined!');
+    this.chain.push(block);
+
+    this.pendingTransactions = [
+      new Transaction('', miningRewardAddress, this.miningReward)
+    ]
+  }
+
+  createTransaction(transaction:Transaction):void{
+    this.pendingTransactions.push(transaction);
+  }
+
+  getBalanceOfAddress(address:string):number{
+    let balance = 0;
+
+    for (const block of this.chain) {
+      for (const trans of block.transactions) {
+        if (trans.fromAddress === address) {
+          balance -= trans.amount;
+        }
+
+        if (trans.toAddress === address) {
+          balance += trans.amount;
+        }
+      }
+    }
+
+    return balance;
   }
 
   isChainValid():boolean{
@@ -83,9 +120,15 @@ class Blockchain {
 }
 
 const snyungBlock =  new Blockchain();
-snyungBlock.addBlock(new Block(1, new Date(), {name:'a', time: new Date()}))
-snyungBlock.addBlock(new Block(2, new Date(), {name:'b', time: new Date()}))
 
-console.log('Is vlockchain valid? ' + snyungBlock.isChainValid())
+snyungBlock.createTransaction(new Transaction('address1', 'address2', 100));
+snyungBlock.createTransaction(new Transaction('address2', 'address1', 50))
 
-// console.log(JSON.stringify(snyungBlock, null, 4))
+console.log('String');
+snyungBlock.minePendingTransaction('xaciers-address');
+
+console.log('Balance of xavier is', snyungBlock.getBalanceOfAddress('xaciers-address'));
+
+snyungBlock.minePendingTransaction('xaciers-address');
+
+console.log('Balance of xavier is', snyungBlock.getBalanceOfAddress('xaciers-address'));
