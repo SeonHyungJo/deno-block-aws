@@ -11,6 +11,7 @@ class Block {
   private data: BlockData;
   public previousHash: string;
   public hash: string;
+  private nonce: number;
 
   constructor(index: number, timestamp: Date, data: BlockData, previousHash = '') {
     this.index = index;
@@ -18,18 +19,30 @@ class Block {
     this.data = data;
     this.previousHash = previousHash;
     this.hash = this.calculateHash();
+    this.nonce = 0;
   }
 
   calculateHash(): string {
-    return sha256(this.index + this.previousHash + this.timestamp + JSON.stringify(this.data), 'utf-8', 'hex').toString();
+    return sha256(this.index + this.previousHash + this.timestamp + JSON.stringify(this.data) + this.nonce, 'utf-8', 'hex').toString();
+  }
+
+  mineBlock(difficulty:number){
+    while (this.hash.substring(0, difficulty) !== Array(difficulty + 1).join('0')) {
+      this.nonce++;
+      this.hash = this.calculateHash();
+    }
+
+    console.log('Block mined: ' + this.hash);
   }
 }
 
 class Blockchain {
   private chain: Array<Block>;
+  private difficulty: number;
 
   constructor() {
     this.chain = [this.createGenesisBlock()];
+    this.difficulty = 2;
   }
 
   createGenesisBlock(): Block {
@@ -47,7 +60,7 @@ class Blockchain {
 
   addBlock(newBlock: Block):void {
     newBlock.previousHash = this.getLatesBlock().calculateHash();
-    newBlock.hash = newBlock.calculateHash();
+    newBlock.mineBlock(this.difficulty);
     this.chain.push(newBlock);
   }
 
